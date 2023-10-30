@@ -81,3 +81,22 @@ export const recoverPasswordValidations = (): ValidationChain[] => {
       ),
   ];
 };
+export const addScoreValidation = (): ValidationChain[] => {
+  return [
+    body("level")
+      .trim()
+      .notEmpty()
+      .withMessage("Email is required")
+      .isNumeric()
+      .withMessage("Must be a number"),
+
+    body("prize")
+      .trim()
+      .notEmpty()
+      .withMessage("prize is required")
+      .isString()
+      .withMessage("Must be a string"),
+
+    body("userId").notEmpty().withMessage("userId is required"),
+  ];
+};
