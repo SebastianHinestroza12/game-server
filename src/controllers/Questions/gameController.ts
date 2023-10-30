@@ -3,7 +3,6 @@ import { Questions } from "../../models/Question";
 import { questions } from "../../api/question";
 import { QuestionsUser } from "../../interfaces";
 import { User } from "../../models/Users";
-import { addScoreValidation } from "../../middlewares/userValidations";
 import { validationResult } from "express-validator";
 
 export const saveQuestions = async (req: Request, res: Response) => {
@@ -61,6 +60,7 @@ export const filterQuestionsByLevel = async (req: Request, res: Response) => {
     const availableQuestions = await Questions.find({
       difficulty_level: level,
     }).lean();
+
     if (!availableQuestions || availableQuestions.length === 0) {
       return res
         .status(404)
@@ -258,5 +258,49 @@ export const callToAFriend = async (req: Request, res: Response) => {
     });
   } catch (error) {
     return res.status(500).json({ error: "His friend didn't answer" });
+  }
+};
+
+const getRandomOptionsToEliminate = (
+  options: string[],
+  count: number,
+): string[] => {
+  if (options.length <= count) {
+    return options;
+  }
+  const shuffledOptions = options.sort(() => Math.random() - 0.5);
+  return shuffledOptions.slice(0, count);
+};
+
+export const fiftyFiftyHelp = async (req: Request, res: Response) => {
+  const { questionId } = req.params;
+  try {
+    const currentQuestion = await Questions.findById(questionId);
+
+    if (!currentQuestion) {
+      throw new Error("Question not found");
+    }
+
+    const { options_answer, correct_answer } = currentQuestion;
+
+    // Filtrar las respuestas incorrectas
+    const incorrectOptions = options_answer.filter(
+      (option) => option !== correct_answer,
+    );
+
+    // Seleccionar dos respuestas incorrectas al azar para eliminar
+    const optionsToEliminate = getRandomOptionsToEliminate(incorrectOptions, 2);
+
+    // Eliminar las respuestas seleccionadas
+    const remainingOptions = options_answer.filter(
+      (option) => !optionsToEliminate.includes(option),
+    );
+
+    return res.status(200).json({
+      remainingOptions,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error using 50-50 help." });
   }
 };
