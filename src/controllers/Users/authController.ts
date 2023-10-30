@@ -7,24 +7,36 @@ import jwt from "jsonwebtoken";
 import "dotenv/config.js";
 
 
-const registerUser = async (req: Request, res: Response) => { 
-
+const registerUser = async (req: Request, res: Response) => {
   const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-  const { userName, email, password, role, activeAccount } = req.body
-  
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  const { userName, email, password, role, activeAccount } = req.body;
+
   try {
-    const findUser = await User.findOne({ email });
-    if (findUser)
-      res
-        .status(409)
-        .json({ error: `The user: ${findUser.email} is already registered` });
-    else {
+    const findUser = await User.findOne({
+      $or: [{ userName: userName.toLowerCase() }, { email }],
+    });
+    if (findUser) {
+      if (findUser.userName === userName.toLowerCase()) {
+        return res.status(409).json({
+          error: `The username: ${findUser.userName} is already registered`,
+        });
+      }
+      return res.status(409).json({
+        error: `The user with email: ${findUser.email} is already registered`,
+      });
+    } else {
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
-      const addUser = new User({ userName, email, password: hashedPassword, role, activeAccount });
+      const addUser = new User({
+        userName,
+        email,
+        password: hashedPassword,
+        role,
+        activeAccount,
+      });
       const result = await addUser.save();
 
       return res.status(201).json({
@@ -33,13 +45,13 @@ const registerUser = async (req: Request, res: Response) => {
       });
     }
   } catch (e) {
-      const error = <Error>e;
-      return res.status(404).json({
-        createUser: false,
-        error: error.message
-      });
+    const error = <Error>e;
+    return res.status(404).json({
+      createUser: false,
+      error: error.message,
+    });
   }
-}
+};
 
 const loginUser = async (req: Request, res: Response) => {
   
