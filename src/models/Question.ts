@@ -6,20 +6,19 @@ const questionsSchema = new mongoose.Schema({
     type: [String],
     required: true,
     validate: {
-      validator: function (value:any) {
-
+      validator: function (value: string) {
         return value.length >= 2 && value.length <= 6;
       },
-      message: 'Debe haber entre 2 y 6 opciones de respuesta.'
-    }
+      message: "Debe haber entre 2 y 6 opciones de respuesta.",
+    },
   },
-  correct_answer: {type: String, required: true},
+  correct_answer: { type: String, required: true },
   difficulty_level: {
     type: String,
-    enum: ['Easy', 'Intermediate', 'Difficult'],
-    required: true
+    enum: ["Easy", "Intermediate", "Difficult"],
+    required: true,
   },
-  categorie: {type: String, required: true},
+  categorie: { type: String, required: true },
 });
 
 export const Questions = mongoose.model("Questions", questionsSchema);
