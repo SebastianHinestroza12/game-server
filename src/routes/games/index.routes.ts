@@ -12,7 +12,7 @@ gamesRoutes.get("/score-history/:userId", gamesController.getScoreHistory);
 gamesRoutes.get("/call-friend/:questionId", gamesController.callToAFriend);
 gamesRoutes.get("/help/50-50/:questionId", gamesController.fiftyFiftyHelp);
 gamesRoutes.post("/question/answer/:questionId", gamesController.userResponse);
-gamesRoutes.post("/question/public-help/:id", gamesController.publicHelp);
+gamesRoutes.post("/question/public-help/:id", gamesController.audienceHelp);
 gamesRoutes.post(
   "/question/user/score",
   addScoreValidation(),

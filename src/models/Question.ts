@@ -19,6 +19,21 @@ const questionsSchema = new mongoose.Schema({
     required: true,
   },
   categorie: { type: String, required: true },
+  audience_help: {
+    type: [Number],
+    required: true,
+    validate: {
+      validator: function (value: any): boolean {
+        return (
+          Array.isArray(value) &&
+          value.length === 4 &&
+          value.reduce((acc: number, val: number) => acc + val, 0) === 100
+        );
+      },
+      message:
+        "The audience_help field must contain 4 numbers that add up to 100.",
+    },
+  },
 });
 
 export const Questions = mongoose.model("Questions", questionsSchema);

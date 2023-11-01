@@ -1,25 +1,76 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { Questions } from "../../models/Question";
 import { questions } from "../../api/question";
 import { QuestionsUser } from "../../interfaces";
 import { User } from "../../models/Users";
 import { validationResult } from "express-validator";
 
+const generateRandomPercentages = () => {
+  const MAX_PERCENTAGE = 40;
+
+  const percentages = [];
+  let totalPercentage = 0;
+
+  for (let i = 0; i < 3; i++) {
+    const maxAllowed = MAX_PERCENTAGE - (2 - i);
+    const percentage = Math.floor(Math.random() * (maxAllowed + 1));
+    percentages.push(percentage);
+    totalPercentage += percentage;
+  }
+
+  percentages.push(100 - totalPercentage);
+
+  return percentages;
+};
+
+function shuffleArray(array: any) {
+  const shuffledArray = [...array];
+  for (let i = shuffledArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledArray[i], shuffledArray[j]] = [shuffledArray[j], shuffledArray[i]];
+  }
+  return shuffledArray;
+}
+
 export const saveQuestions = async (req: Request, res: Response) => {
   const allQuestions: QuestionsUser[] = questions;
   try {
     for (const question of allQuestions) {
+      const audienceHelpPercentages = generateRandomPercentages();
+      const shuffledOptions = shuffleArray(question.opcionesRespuesta);
+
+      const correctAnswerIndex = shuffledOptions.indexOf(
+        question.respuestaCorrecta,
+      );
+
+      const totalPercentage = audienceHelpPercentages.reduce(
+        (acc, percentage) => acc + percentage,
+        0,
+      );
+
+      if (totalPercentage < 100) {
+        const diff = 100 - totalPercentage;
+        audienceHelpPercentages[correctAnswerIndex] += diff;
+
+        audienceHelpPercentages[correctAnswerIndex] = Math.max(
+          audienceHelpPercentages[correctAnswerIndex],
+          0,
+        );
+      }
+
       const ques = new Questions({
         question: question.pregunta,
-        options_answer: question.opcionesRespuesta,
+        options_answer: shuffledOptions,
         correct_answer: question.respuestaCorrecta,
         difficulty_level: question.nivelDificultad,
         categorie: question.categoria,
+        audience_help: audienceHelpPercentages,
       });
+
       await ques.save();
     }
 
-    return res.status(200).json("Questions load successfully");
+    return res.status(200).json("Questions loaded successfully");
   } catch (error) {
     return res.status(500).json({ message: error });
   }
@@ -50,7 +101,6 @@ export const getQuestionById = async (req: Request, res: Response) => {
   }
 };
 
-// Variables para realizar un seguimiento de las preguntas mostradas
 const questionsDisplayed = new Set();
 
 export const filterQuestionsByLevel = async (req: Request, res: Response) => {
@@ -66,23 +116,20 @@ export const filterQuestionsByLevel = async (req: Request, res: Response) => {
         .status(404)
         .json({ message: "No questions were found for this level." });
     }
-    // Filtramos las preguntas que no han sido mostradas
+
     const questionsNotDisplayed = availableQuestions.filter(
       (question) => !questionsDisplayed.has(question._id),
     );
 
     if (questionsNotDisplayed.length === 0) {
-      // Si todas las preguntas se han mostrado, reiniciamos el registro
       questionsDisplayed.clear();
     }
 
-    // Obténemos una pregunta aleatoria de las no mostradas
     const randomQuestion =
       questionsNotDisplayed[
         Math.floor(Math.random() * questionsNotDisplayed.length)
       ];
 
-    // Agregamos la pregunta al registro de preguntas mostradas
     questionsDisplayed.add(randomQuestion._id);
 
     console.log(questionsDisplayed);
@@ -113,69 +160,46 @@ export const userResponse = async (req: Request, res: Response) => {
       res.json({ result: "Incorrect" });
     }
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Error processing response." });
   }
 };
 
-function asignarPorcentajes(
-  string1: string,
-  string2: string,
-  string3: string,
-  string4: string,
-  correctAnswer: string,
-) {
-  const porcentaje1 = Math.floor(Math.random() * 70 + 1);
-
-  const porcentaje2 = Math.floor(Math.random() * (100 - porcentaje1) + 1);
-
-  const porcentaje3 = Math.floor(
-    Math.random() * (100 - porcentaje1 - porcentaje2) + 1,
-  );
-
-  const porcentaje4 = 100 - porcentaje1 - porcentaje2 - porcentaje3;
-
-  const opciones = [string1, string2, string3, string4];
-  if (opciones.includes(correctAnswer)) {
-    const indexRespuestaCorrecta = opciones.indexOf(correctAnswer);
-    const porcentajeCorrecto = 100 - (porcentaje1 + porcentaje2 + porcentaje3);
-    opciones[indexRespuestaCorrecta] = porcentajeCorrecto.toString();
-  }
-
-  const resultado = {
-    [string1]: porcentaje1,
-    [string2]: porcentaje2,
-    [string3]: porcentaje3,
-    [string4]: porcentaje4,
-  };
-
-  return resultado;
-}
-
-export const publicHelp = async (req: Request, res: Response) => {
+export const audienceHelp = async (req: Request, res: Response) => {
   const { id } = req.params;
+
   try {
-    // Obtenemos la pregunta actual
     const currentQuestion = await Questions.findById(id);
 
     if (!currentQuestion) {
       throw new Error("Question not found");
     }
 
-    const { options_answer, correct_answer } = currentQuestion;
+    const { options_answer, correct_answer, audience_help } = currentQuestion;
+    const maxPercentage = Math.max(...audience_help);
 
-    return res.status(200).json({
-      responses: asignarPorcentajes(
-        options_answer[0],
-        options_answer[1],
-        options_answer[2],
-        options_answer[3],
-        correct_answer,
-      ),
+    const filteredOptions = options_answer.filter(
+      (data) => data !== correct_answer,
+    );
+    const filteredPercentages = audience_help.filter(
+      (data) => data < maxPercentage,
+    );
+
+    const optionsWithPercentage = filteredOptions.map((name, i) => ({
+      name,
+      value: filteredPercentages[i],
+    }));
+
+    optionsWithPercentage.push({
+      name: correct_answer,
+      value: maxPercentage,
     });
+
+    const resultPublicHelp = shuffleArray(optionsWithPercentage) 
+
+    return res.status(200).json(resultPublicHelp);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error when using public help." });
+    return res.status(500).json({ message: "Error when using public help." });
   }
 };
 
@@ -246,9 +270,7 @@ export const callToAFriend = async (req: Request, res: Response) => {
       "Estoy convencido de que la respuesta correcta es",
       "Sin lugar a dudas, la respuesta es",
     ];
-    console.log(responseFriend.length);
     let result = Math.floor(Math.random() * responseFriend.length);
-    console.log({ result });
     const findQuestion = await Questions.findById(questionId);
 
     if (!findQuestion) return res.status(404).json("Question not found");
@@ -283,15 +305,13 @@ export const fiftyFiftyHelp = async (req: Request, res: Response) => {
 
     const { options_answer, correct_answer } = currentQuestion;
 
-    // Filtrar las respuestas incorrectas
     const incorrectOptions = options_answer.filter(
       (option) => option !== correct_answer,
     );
 
-    // Seleccionar dos respuestas incorrectas al azar para eliminar
     const optionsToEliminate = getRandomOptionsToEliminate(incorrectOptions, 2);
 
-    // Eliminar las respuestas seleccionadas
+    // Eliminamos las respuestas seleccionadas
     const remainingOptions = options_answer.filter(
       (option) => !optionsToEliminate.includes(option),
     );
