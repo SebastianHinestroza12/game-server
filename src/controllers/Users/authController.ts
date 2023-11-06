@@ -104,14 +104,16 @@ const loginUser = async (req: Request, res: Response) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id },
+      { userId: user.id, userName: user.userName },
       `${process.env.JWT_SECRET_KEY}`,
-      { expiresIn: '1d' },
+      { expiresIn: "1d" },
     );
-    
+
     res.cookie("token", token, { httpOnly: true });
-    await FailedLogin.deleteMany({userId : user._id})
-    return res.status(200).json({ login: "Success", token});
+    await FailedLogin.deleteMany({ userId: user._id });
+    return res
+      .status(200)
+      .json({ login: true, userName: user.userName, token });
   } catch (e) {
     const error = <Error>e;
     return res.status(500).json({ login: false, error: error.message });

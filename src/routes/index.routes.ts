@@ -28,7 +28,7 @@ router.delete("/delete/:userId", deleteUser);
 
 // Protected Routed
 router.get("/protected-route", authenticateToken, (req, res) => {
-  res.json({ message: "Acceso al recurso protegido permitido" });
+  return res.status(200).json({ message: "Successful authentication" });
 });
 
 
