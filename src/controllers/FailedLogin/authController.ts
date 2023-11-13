@@ -62,10 +62,11 @@ const getAllCode = async (req: Request, res: Response) => {
 const codeConfirm = async (req: Request, res: Response) => {
   const { email, codeConfirm } = req.body;
 
-  const user = await User.findOne({ email });
-  const getCodeUser = await VerificationCode.find({ email });
 
   try {
+    const user = await User.findOne({ email });
+    const getCodeUser = await VerificationCode.find({ email });
+
     if (!user) return res.status(404).json("User not found");
 
     if (getCodeUser.length === 0)
@@ -80,14 +81,12 @@ const codeConfirm = async (req: Request, res: Response) => {
 
     await VerificationCode.deleteMany({ email });
     await FailedLogin.deleteMany({ userId: user._id });
-    res
-      .status(200)
-      .json({
-        message:
-          "Identity verification successful, proceed to reset your password",
-      });
+    res.status(200).json({
+      message:
+        "Identity verification successful, proceed to reset your password",
+    });
   } catch (error) {
-      res.status(500).json(`Server error ${error}`);
+    res.status(500).json(`Server error ${error}`);
   }
 };
 
