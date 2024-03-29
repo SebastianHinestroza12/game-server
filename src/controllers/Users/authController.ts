@@ -54,13 +54,12 @@ const registerUser = async (req: Request, res: Response) => {
 };
 
 const loginUser = async (req: Request, res: Response) => {
-  
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
-  
-  const { email, password} = req.body;
+
+  const { email, password } = req.body;
   const ipAddress = req.ip;
 
   try {
@@ -71,34 +70,34 @@ const loginUser = async (req: Request, res: Response) => {
         .json({ login: false, error: "Email or password was not correct" });
     }
 
-    if(!user.activeAccount) return res.status(403).json({
-      error: "The account has been blocked due to inappropriate behavior. Please contact support for more information.",
-    });
+    if (!user.activeAccount)
+      return res.status(403).json({
+        error:
+          "The account has been blocked due to inappropriate behavior. Please contact support for more information.",
+      });
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
       const failedLogin = new FailedLogin({ userId: user._id, ipAddress });
       await failedLogin.save();
-      
-      const maxFailedAttempts = 3; 
+
+      const maxFailedAttempts = 3;
       const recentFailedAttempts = await FailedLogin.countDocuments({
         userId: user._id,
       });
 
       let response;
       if (recentFailedAttempts >= maxFailedAttempts) {
-        user.activeAccount = false; 
+        user.activeAccount = false;
         await user.save();
-        response = res
-          .status(403)
-          .json({
-            Information: "Account blocked for maximum failed attempts",
-          });
+        response = res.status(403).json({
+          Information: "Account blocked for maximum failed attempts",
+        });
       } else {
         response = res
           .status(401)
-          .json({ login: false, error: "Email or password was not correct" });
+          .json({ login: false, message: "Email or password was not correct" });
       }
       return response;
     }
@@ -123,18 +122,19 @@ const loginUser = async (req: Request, res: Response) => {
 const modifyInformation = async (req: Request, res: Response) => {
   const { email, userName } = req.body;
   try {
-    const updateUser = await User.findOneAndUpdate({email}, { userName})
-    
-    if (updateUser) return res.status(200).json({
-      updated: true, 
-      message: 'User updated successfully'
-    })
+    const updateUser = await User.findOneAndUpdate({ email }, { userName });
+
+    if (updateUser)
+      return res.status(200).json({
+        updated: true,
+        message: "User updated successfully",
+      });
     return res.status(404).json({
-      updated: false, 
-      message: 'User not found'
-    })
+      updated: false,
+      message: "User not found",
+    });
   } catch (error) {
-    res.status(500).json(`Server error: ${error}`)
+    res.status(500).json(`Server error: ${error}`);
   }
 };
 
@@ -171,10 +171,10 @@ const recoverPassword = async (req: Request, res: Response) => {
       error: error.message,
     });
   }
-}
+};
 
 const deleteUser = async (req: Request, res: Response) => {
-  const { userId} = req.params
+  const { userId } = req.params;
 
   try {
     const deletedUser = await User.findByIdAndRemove(userId);
@@ -193,16 +193,15 @@ const deleteUser = async (req: Request, res: Response) => {
 const getAllUsers = async (req: Request, res: Response) => {
   const user = await User.find();
   try {
-    if (user.length !== 0)
-      return res.status(200).json(user);
-    throw new Error(`We do not have registered users❌`);
+    if (user.length !== 0) return res.status(200).json(user);
+    throw new Error(`We do not have registered users`);
   } catch (e) {
-      let error = <Error>e;
-      return res.status(404).json({
-        error: error.message,
-      });
-    }
-}
+    let error = <Error>e;
+    return res.status(404).json({
+      message: error.message,
+    });
+  }
+};
 
 export {
   loginUser,
